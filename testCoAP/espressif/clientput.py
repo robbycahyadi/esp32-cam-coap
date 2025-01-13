@@ -4,7 +4,7 @@ from aiocoap import Context, Message, PUT
 
 async def coap_put():
     # Define the target CoAP server
-    uri = "coap://192.168.0.165/Espressif"  # Replace with actual IP and port
+    uri = "coap://192.168.110.28/Espressif"  # Replace with actual IP and port
     
     # Create the CoAP context
     context = await Context.create_client_context()

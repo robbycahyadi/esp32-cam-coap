@@ -4,7 +4,7 @@ import numpy as np
 from aiocoap import *
 
 # Constants
-SERVER_URI = "coap://172.20.10.2/stream"  # Replace with your CoAP server's IP
+SERVER_URI = "coap://192.168.110.28/stream"  # Replace with your CoAP server's IP
 BUFFER_SIZE = 5  # Number of frames to buffer
 WINDOW_NAME = "CoAP Video Stream"
 

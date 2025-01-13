@@ -3,7 +3,7 @@ from aiocoap import *
 
 async def coap_get_request():
     # Define the CoAP server URI
-    uri = "coap://192.168.0.165/Espressif"
+    uri = "coap://192.168.110.28/Espressif"
     
     # Create a context for the CoAP client
     protocol = await Context.create_client_context()

@@ -4,7 +4,7 @@ import numpy as np
 from aiocoap import *
 
 async def fetch_stream():
-    uri = "coap://172.20.10.2/stream"  # Replace with your CoAP server's IP and endpoint
+    uri = "coap://192.168.110.28/stream"  # Replace with your CoAP server's IP and endpoint
     protocol = await Context.create_client_context()
 
     try:

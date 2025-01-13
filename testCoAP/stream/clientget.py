@@ -15,7 +15,7 @@ async def observe_stream():
     context = await Context.create_client_context()
 
     # Create a GET request with observe option
-    request = Message(code=GET, uri="coap://192.168.0.165/stream", observe=0)
+    request = Message(code=GET, uri="coap://192.168.110.28/stream", observe=0)
 
     try:
         print("Sending observe request to CoAP server...")

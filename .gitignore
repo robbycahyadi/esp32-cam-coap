@@ -25,3 +25,4 @@ sdkconfig.defaults.esp32h2
 sdkconfig.old
 
 build
+testCoAP/photos/*.*
