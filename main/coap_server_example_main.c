@@ -62,6 +62,7 @@
 #define EXAMPLE_COAP_LOG_DEFAULT_LEVEL CONFIG_COAP_LOG_DEFAULT_LEVEL
 
 const static char *TAG = "CoAP_server";
+wifi_ap_record_t ap_info;  
 
 static char espressif_data[100];
 static int espressif_data_len = 0;
@@ -126,7 +127,7 @@ static camera_config_t camera_config = {
     .ledc_channel = LEDC_CHANNEL_0,
 
     .pixel_format = PIXFORMAT_JPEG, // YUV422,GRAYSCALE,RGB565,JPEG
-    .frame_size = FRAMESIZE_VGA,   // QQVGA-UXGA, For ESP32, do not use sizes above QVGA when not JPEG. The performance of the ESP32-S series has improved a lot, but JPEG mode always gives better frame rates.
+    .frame_size = FRAMESIZE_XGA,   // QQVGA-UXGA, For ESP32, do not use sizes above QVGA when not JPEG. The performance of the ESP32-S series has improved a lot, but JPEG mode always gives better frame rates.
 
     .jpeg_quality = 20, // 0-63, for OV series camera sensors, lower number means higher quality
     .fb_count = 1,      // When jpeg mode is used, if fb_count more than one, the driver will work in continuous mode.
@@ -198,7 +199,12 @@ hnd_test_get(coap_resource_t *resource,
              const coap_string_t *query,
              coap_pdu_t *response)
 {
-    const char *response_data = "test";
+    char rssi_buffer[10];
+    esp_wifi_sta_get_ap_info(&ap_info);
+    int rssi_value = ap_info.rssi;  
+    sprintf(rssi_buffer, "%d", rssi_value);
+    const char *response_data = rssi_buffer;
+
     coap_pdu_set_code(response, COAP_RESPONSE_CODE_CONTENT);
     coap_add_data_large_response(resource, session, request, response,
                                  query, COAP_MEDIATYPE_TEXT_PLAIN, 60, 0,
@@ -397,28 +403,29 @@ static void coap_example_server(void *p)
     coap_resource_t *resource = NULL;
     int have_ep = 0;
     uint16_t u_s_port = atoi(CONFIG_EXAMPLE_COAP_LISTEN_PORT);
-#ifdef CONFIG_EXAMPLE_COAPS_LISTEN_PORT
-    uint16_t s_port = atoi(CONFIG_EXAMPLE_COAPS_LISTEN_PORT);
-#else  /* ! CONFIG_EXAMPLE_COAPS_LISTEN_PORT */
-    uint16_t s_port = 0;
-#endif /* ! CONFIG_EXAMPLE_COAPS_LISTEN_PORT */
 
-#ifdef CONFIG_EXAMPLE_COAP_WEBSOCKET_PORT
-    uint16_t ws_port = atoi(CONFIG_EXAMPLE_COAP_WEBSOCKET_PORT);
-#else  /* ! CONFIG_EXAMPLE_COAP_WEBSOCKET_PORT */
-    uint16_t ws_port = 0;
-#endif /* ! CONFIG_EXAMPLE_COAP_WEBSOCKET_PORT */
+    #ifdef CONFIG_EXAMPLE_COAPS_LISTEN_PORT
+        uint16_t s_port = atoi(CONFIG_EXAMPLE_COAPS_LISTEN_PORT);
+    #else  /* ! CONFIG_EXAMPLE_COAPS_LISTEN_PORT */
+        uint16_t s_port = 0;
+    #endif /* ! CONFIG_EXAMPLE_COAPS_LISTEN_PORT */
 
-#ifdef CONFIG_EXAMPLE_COAP_WEBSOCKET_SECURE_PORT
-    uint16_t ws_s_port = atoi(CONFIG_EXAMPLE_COAP_WEBSOCKET_SECURE_PORT);
-#else  /* ! CONFIG_EXAMPLE_COAP_WEBSOCKET_SECURE_PORT */
-    uint16_t ws_s_port = 0;
-#endif /* ! CONFIG_EXAMPLE_COAP_WEBSOCKET_SECURE_PORT */
-    uint32_t scheme_hint_bits;
-#ifdef CONFIG_COAP_OSCORE_SUPPORT
-    coap_str_const_t osc_conf = {0, 0};
-    coap_oscore_conf_t *oscore_conf;
-#endif /* CONFIG_COAP_OSCORE_SUPPORT */
+    #ifdef CONFIG_EXAMPLE_COAP_WEBSOCKET_PORT
+        uint16_t ws_port = atoi(CONFIG_EXAMPLE_COAP_WEBSOCKET_PORT);
+    #else  /* ! CONFIG_EXAMPLE_COAP_WEBSOCKET_PORT */
+        uint16_t ws_port = 0;
+    #endif /* ! CONFIG_EXAMPLE_COAP_WEBSOCKET_PORT */
+
+    #ifdef CONFIG_EXAMPLE_COAP_WEBSOCKET_SECURE_PORT
+        uint16_t ws_s_port = atoi(CONFIG_EXAMPLE_COAP_WEBSOCKET_SECURE_PORT);
+    #else  /* ! CONFIG_EXAMPLE_COAP_WEBSOCKET_SECURE_PORT */
+        uint16_t ws_s_port = 0;
+    #endif /* ! CONFIG_EXAMPLE_COAP_WEBSOCKET_SECURE_PORT */
+        uint32_t scheme_hint_bits;
+    #ifdef CONFIG_COAP_OSCORE_SUPPORT
+        coap_str_const_t osc_conf = {0, 0};
+        coap_oscore_conf_t *oscore_conf;
+    #endif /* CONFIG_COAP_OSCORE_SUPPORT */
 
     /* Initialize libcoap library */
     coap_startup();
@@ -444,14 +451,14 @@ static void coap_example_server(void *p)
                                     COAP_BLOCK_USE_LIBCOAP | COAP_BLOCK_SINGLE_BODY);
         coap_context_set_max_idle_sessions(ctx, 20);
 
-#ifdef CONFIG_COAP_MBEDTLS_PSK
-        /* Need PSK setup before we set up endpoints */
-        coap_context_set_psk(ctx, "CoAP",
-                             (const uint8_t *)EXAMPLE_COAP_PSK_KEY,
-                             sizeof(EXAMPLE_COAP_PSK_KEY) - 1);
-#endif /* CONFIG_COAP_MBEDTLS_PSK */
+        #ifdef CONFIG_COAP_MBEDTLS_PSK
+                /* Need PSK setup before we set up endpoints */
+                coap_context_set_psk(ctx, "CoAP",
+                                    (const uint8_t *)EXAMPLE_COAP_PSK_KEY,
+                                    sizeof(EXAMPLE_COAP_PSK_KEY) - 1);
+        #endif /* CONFIG_COAP_MBEDTLS_PSK */
 
-#ifdef CONFIG_COAP_MBEDTLS_PKI
+        #ifdef CONFIG_COAP_MBEDTLS_PKI
         /* Need PKI setup before we set up endpoints */
         unsigned int ca_pem_bytes = ca_pem_end - ca_pem_start;
         unsigned int server_crt_bytes = server_crt_end - server_crt_start;
@@ -496,45 +503,45 @@ static void coap_example_server(void *p)
         dtls_pki.pki_key.key.pem_buf.ca_cert_len = ca_pem_bytes;
 
         coap_context_set_pki(ctx, &dtls_pki);
-#endif /* CONFIG_COAP_MBEDTLS_PKI */
+        #endif /* CONFIG_COAP_MBEDTLS_PKI */
 
-#ifdef CONFIG_COAP_OSCORE_SUPPORT
-        osc_conf.s = oscore_conf_start;
-        osc_conf.length = oscore_conf_end - oscore_conf_start;
-        oscore_conf = coap_new_oscore_conf(osc_conf,
-                                           NULL,
-                                           NULL, 0);
-        coap_context_oscore_server(ctx, oscore_conf);
-#endif /* CONFIG_COAP_OSCORE_SUPPORT */
+        #ifdef CONFIG_COAP_OSCORE_SUPPORT
+                osc_conf.s = oscore_conf_start;
+                osc_conf.length = oscore_conf_end - oscore_conf_start;
+                oscore_conf = coap_new_oscore_conf(osc_conf,
+                                                NULL,
+                                                NULL, 0);
+                coap_context_oscore_server(ctx, oscore_conf);
+        #endif /* CONFIG_COAP_OSCORE_SUPPORT */
 
         /* set up the CoAP server socket(s) */
         scheme_hint_bits =
             coap_get_available_scheme_hint_bits(
-#if defined(CONFIG_COAP_MBEDTLS_PSK) || defined(CONFIG_COAP_MBEDTLS_PKI)
-                1,
-#else  /* ! CONFIG_COAP_MBEDTLS_PSK) && ! CONFIG_COAP_MBEDTLS_PKI */
-                0,
-#endif /* ! CONFIG_COAP_MBEDTLS_PSK) && ! CONFIG_COAP_MBEDTLS_PKI */
-#ifdef CONFIG_COAP_WEBSOCKETS
-                1,
-#else  /* ! CONFIG_COAP_WEBSOCKETS */
-                0,
-#endif /* ! CONFIG_COAP_WEBSOCKETS */
-                0);
+        #if defined(CONFIG_COAP_MBEDTLS_PSK) || defined(CONFIG_COAP_MBEDTLS_PKI)
+                        1,
+        #else  /* ! CONFIG_COAP_MBEDTLS_PSK) && ! CONFIG_COAP_MBEDTLS_PKI */
+                        0,
+        #endif /* ! CONFIG_COAP_MBEDTLS_PSK) && ! CONFIG_COAP_MBEDTLS_PKI */
+        #ifdef CONFIG_COAP_WEBSOCKETS
+                        1,
+        #else  /* ! CONFIG_COAP_WEBSOCKETS */
+                        0,
+        #endif /* ! CONFIG_COAP_WEBSOCKETS */
+                        0);
 
-#if LWIP_IPV6
-        info_list = coap_resolve_address_info(coap_make_str_const("::"), u_s_port, s_port,
-                                              ws_port, ws_s_port,
-                                              0,
-                                              scheme_hint_bits,
-                                              COAP_RESOLVE_TYPE_LOCAL);
-#else  /* LWIP_IPV6 */
-        info_list = coap_resolve_address_info(coap_make_str_const("0.0.0.0"), u_s_port, s_port,
-                                              ws_port, ws_s_port,
-                                              0,
-                                              scheme_hint_bits,
-                                              COAP_RESOLVE_TYPE_LOCAL);
-#endif /* LWIP_IPV6 */
+        #if LWIP_IPV6
+                info_list = coap_resolve_address_info(coap_make_str_const("::"), u_s_port, s_port,
+                                                    ws_port, ws_s_port,
+                                                    0,
+                                                    scheme_hint_bits,
+                                                    COAP_RESOLVE_TYPE_LOCAL);
+        #else  /* LWIP_IPV6 */
+                info_list = coap_resolve_address_info(coap_make_str_const("0.0.0.0"), u_s_port, s_port,
+                                                    ws_port, ws_s_port,
+                                                    0,
+                                                    scheme_hint_bits,
+                                                    COAP_RESOLVE_TYPE_LOCAL);
+        #endif /* LWIP_IPV6 */
         if (info_list == NULL)
         {
             ESP_LOGE(TAG, "coap_resolve_address_info() failed");
@@ -609,33 +616,33 @@ static void coap_example_server(void *p)
         coap_add_resource(ctx, resource);
 
 
-#ifdef CONFIG_COAP_OSCORE_SUPPORT
-        resource = coap_resource_init(coap_make_str_const("oscore"), COAP_RESOURCE_FLAGS_OSCORE_ONLY);
-        if (!resource)
-        {
-            ESP_LOGE(TAG, "coap_resource_init() failed");
-            goto clean_up;
-        }
-        coap_register_handler(resource, COAP_REQUEST_GET, hnd_oscore_get);
-        coap_add_resource(ctx, resource);
-#endif /* CONFIG_COAP_OSCORE_SUPPORT */
+        #ifdef CONFIG_COAP_OSCORE_SUPPORT
+                resource = coap_resource_init(coap_make_str_const("oscore"), COAP_RESOURCE_FLAGS_OSCORE_ONLY);
+                if (!resource)
+                {
+                    ESP_LOGE(TAG, "coap_resource_init() failed");
+                    goto clean_up;
+                }
+                coap_register_handler(resource, COAP_REQUEST_GET, hnd_oscore_get);
+                coap_add_resource(ctx, resource);
+        #endif /* CONFIG_COAP_OSCORE_SUPPORT */
 
-#if defined(CONFIG_EXAMPLE_COAP_MCAST_IPV4) || defined(CONFIG_EXAMPLE_COAP_MCAST_IPV6)
-        esp_netif_t *netif = NULL;
-        for (int i = 0; i < esp_netif_get_nr_of_ifs(); ++i)
-        {
-            char buf[8];
-            netif = esp_netif_next(netif);
-            esp_netif_get_netif_impl_name(netif, buf);
-#if defined(CONFIG_EXAMPLE_COAP_MCAST_IPV4)
-            coap_join_mcast_group_intf(ctx, CONFIG_EXAMPLE_COAP_MULTICAST_IPV4_ADDR, buf);
-#endif /* CONFIG_EXAMPLE_COAP_MCAST_IPV4 */
-#if defined(CONFIG_EXAMPLE_COAP_MCAST_IPV6)
-            /* When adding IPV6 esp-idf requires ifname param to be filled in */
-            coap_join_mcast_group_intf(ctx, CONFIG_EXAMPLE_COAP_MULTICAST_IPV6_ADDR, buf);
-#endif /* CONFIG_EXAMPLE_COAP_MCAST_IPV6 */
-        }
-#endif /* CONFIG_EXAMPLE_COAP_MCAST_IPV4 || CONFIG_EXAMPLE_COAP_MCAST_IPV6 */
+        #if defined(CONFIG_EXAMPLE_COAP_MCAST_IPV4) || defined(CONFIG_EXAMPLE_COAP_MCAST_IPV6)
+                esp_netif_t *netif = NULL;
+                for (int i = 0; i < esp_netif_get_nr_of_ifs(); ++i)
+                {
+                    char buf[8];
+                    netif = esp_netif_next(netif);
+                    esp_netif_get_netif_impl_name(netif, buf);
+        #if defined(CONFIG_EXAMPLE_COAP_MCAST_IPV4)
+                    coap_join_mcast_group_intf(ctx, CONFIG_EXAMPLE_COAP_MULTICAST_IPV4_ADDR, buf);
+        #endif /* CONFIG_EXAMPLE_COAP_MCAST_IPV4 */
+        #if defined(CONFIG_EXAMPLE_COAP_MCAST_IPV6)
+                    /* When adding IPV6 esp-idf requires ifname param to be filled in */
+                    coap_join_mcast_group_intf(ctx, CONFIG_EXAMPLE_COAP_MULTICAST_IPV6_ADDR, buf);
+        #endif /* CONFIG_EXAMPLE_COAP_MCAST_IPV6 */
+                }
+        #endif /* CONFIG_EXAMPLE_COAP_MCAST_IPV4 || CONFIG_EXAMPLE_COAP_MCAST_IPV6 */
 
         wait_ms = COAP_RESOURCE_CHECK_TIME * 1000;
 
@@ -682,6 +689,13 @@ void app_main(void)
     {
         ESP_LOGE(TAG, "Camera initialization failed!");
         return;
+    }
+
+    if (esp_wifi_sta_get_ap_info(&ap_info) == ESP_OK) {  
+        // Print the RSSI (signal strength)  
+        ESP_LOGE(TAG, "RSSI: %d dBm", ap_info.rssi);  
+    } else {  
+        ESP_LOGE(TAG, "Failed to get AP info");  
     }
 
     xTaskCreate(coap_example_server, "coap", 8 * 1024, NULL, 5, NULL);
